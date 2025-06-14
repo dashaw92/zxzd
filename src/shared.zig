@@ -1,8 +1,6 @@
 const std = @import("std");
 const File = std.fs.File;
 
-pub const BUF_SIZE = 16;
-
 /// Get the first argument provided on the command line, skipping
 /// the executable's entry (the actual first argument).
 pub fn getArg() ![:0]const u8 {

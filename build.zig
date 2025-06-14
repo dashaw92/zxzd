@@ -4,6 +4,10 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const BUF_SIZE = b.option(u5, "bytes", "Number of bytes per chunk") orelse 16;
+    const options = b.addOptions();
+    options.addOption(u5, "buf_size", BUF_SIZE);
+
     //code shared between zx and zd
     const shared_lib = b.createModule(.{
         .root_source_file = b.path("src/shared.zig"),
@@ -18,8 +22,8 @@ pub fn build(b: *std.Build) void {
     //here is required for this.
     //TODO: Is there a way to read arguments (easily!) from zig build
     //to conditionally compile only one? Nitpicky and not needed.
-    add_exe(b, target, optimize, shared_lib, "zx", "src/zx.zig");
-    add_exe(b, target, optimize, shared_lib, "zd", "src/zd.zig");
+    add_exe(b, target, optimize, shared_lib, options, "zx", "src/zx.zig");
+    add_exe(b, target, optimize, shared_lib, options, "zd", "src/zd.zig");
 }
 
 //Helper to de-duplicate code for including multiple binaries in a single Zig project.
@@ -27,7 +31,7 @@ pub fn build(b: *std.Build) void {
 //shared_lib: src/shared.zig module
 //exe: name of the binary
 //path: source file
-fn add_exe(b: *std.Build, target: anytype, optimize: anytype, shared_lib: anytype, exe: []const u8, path: []const u8) void {
+fn add_exe(b: *std.Build, target: anytype, optimize: anytype, shared_lib: anytype, options: anytype, exe: []const u8, path: []const u8) void {
     const mod = b.createModule(.{
         .root_source_file = b.path(path),
         .target = target,
@@ -42,6 +46,8 @@ fn add_exe(b: *std.Build, target: anytype, optimize: anytype, shared_lib: anytyp
         .name = exe,
         .root_module = mod,
     });
+
+    b_exe.root_module.addOptions("build_options", options);
 
     b.installArtifact(b_exe);
     const run_cmd = b.addRunArtifact(b_exe);

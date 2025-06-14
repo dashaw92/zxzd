@@ -1,5 +1,6 @@
 const std = @import("std");
 const shared = @import("shared");
+const BUF_SIZE = @import("build_options").buf_size;
 
 pub fn main() !u8 {
     const path = shared.getArg() catch {
@@ -15,7 +16,7 @@ pub fn main() !u8 {
 }
 
 //Re-assembles hex output from zx back into raw bytes.
-//This code assumes that shared.BUF_SIZE is the same in both zx and zd.
+//This code assumes that BUF_SIZE is the same in both zx and zd.
 //The assembler reads a single character from the input file (or stdin) at a time,
 //maintaining a state machine that keeps a mental model of where in the input we are.
 //zx output looks like:                                    vvvvvvvvvvvvvvvvvvv skipped
@@ -100,7 +101,7 @@ fn assemble(path: [:0]const u8) !void {
 
             //If we've read the total available number of bytes, skip
             //until the next line begins.
-            if (readBytesOnLine == shared.BUF_SIZE) {
+            if (readBytesOnLine == BUF_SIZE) {
                 readyToReadBytes = false;
             }
 

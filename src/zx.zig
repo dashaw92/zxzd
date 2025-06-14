@@ -1,5 +1,6 @@
 const std = @import("std");
 const shared = @import("shared");
+const BUF_SIZE = @import("build_options").buf_size;
 
 pub fn main() !u8 {
     const path = shared.getArg() catch {
@@ -20,7 +21,7 @@ pub fn main() !u8 {
 //Specifically, this means ensuring that:
 // [1] A pair of spaces ("  ") exists at the beginning of the line
 // [2] All bytes are two hex characters (0xAB, etc)
-// [3] Total number of bytes per line == shared.zig/BUF_SIZE
+// [3] Total number of bytes per line == BUF_SIZE (-Dbytes)
 // [4] All bytes are separated by a single space " "
 // [5] All lines are terminated with '\n'
 //
@@ -29,15 +30,15 @@ pub fn main() !u8 {
 // 00000000  68 65 6C 6C 6F 20 77 6F 72 6C 64 0A 00 00 00 00  hello.world.....(\n)
 //         ^   ^                           ^^                                  ^
 //       [1]   [4]                         [2]                                 [5]
-// [3] Total number of bytes printed on this line = 16; shared.BUF_SIZE = 16. Therefore, this line is valid.
+// [3] Total number of bytes printed on this line = 16; BUF_SIZE defaults to 16. Therefore, this line is valid.
 fn dump(path: [:0]const u8) !void {
     const file = try shared.getFileOrStdin(path);
     defer file.close();
 
     //Implements the chunked view of the provided file, with each
-    //chunk printed on a line, representing a total of shared.BUF_SIZE bytes
+    //chunk printed on a line, representing a total of BUF_SIZE bytes
     //per chunk.
-    var buf: [shared.BUF_SIZE]u8 = [_]u8{0} ** shared.BUF_SIZE;
+    var buf: [BUF_SIZE]u8 = [_]u8{0} ** BUF_SIZE;
     //Maintain the current offset into the file
     var idx: u32 = 0;
     const out = std.io.getStdOut().writer();
@@ -53,19 +54,19 @@ fn dump(path: [:0]const u8) !void {
         //Print each individual byte, suffixing non-terminal bytes with a single space (important)
         //zd depends on the single space. Could be reworked to not need it, but the output
         //is easier to read with it, so this single space is currently required.
-        for (0..shared.BUF_SIZE) |i| {
-            try std.fmt.format(w, "{X:0>2}{s}", .{ buf[i], if (i == shared.BUF_SIZE - 1) "" else " " });
+        for (0..BUF_SIZE) |i| {
+            try std.fmt.format(w, "{X:0>2}{s}", .{ buf[i], if (i == BUF_SIZE - 1) "" else " " });
         }
 
         //Not required, but makes the output more symmetrical. zd never considers anything except for \n
-        //once the number of bytes read matches shared.BUF_SIZE.
+        //once the number of bytes read matches BUF_SIZE.
         _ = try w.write("  ");
 
         //Finish the line with the ASCII representation of the chunk, replacing non-printable
         //characters with a single '.'
         //zd doesn't care about this, and only requires a single \n at the end of the line once all
         //bytes are read from the chunk.
-        for (0..shared.BUF_SIZE) |i| {
+        for (0..BUF_SIZE) |i| {
             //Note: <= 32, not < 32 because space is 0x20 (32). While it's printable, it's
             //invisible, so it's kinda useless to even display it in the ASCII column anyways. </opinion>
             try std.fmt.format(w, "{c}", .{if (buf[i] <= 32 or buf[i] > 126) '.' else buf[i]});
@@ -78,6 +79,6 @@ fn dump(path: [:0]const u8) !void {
         _ = try w.write("\n");
 
         //Update the offset
-        idx += shared.BUF_SIZE;
+        idx += BUF_SIZE;
     }
 }

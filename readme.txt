@@ -9,8 +9,10 @@ is a no-op.
 
 Both tools accept a filename or - for stdin as the first argument.
 
-Note: The 16 bytes-per-line format is hardcoded only in shared.zig via BUF_SIZE; both tools are coded around this constant, and consequently require both tools to have matching compiled constants.
-i.e.: a zx compiled with BUF_SIZE = 8 will not work with a zd compiled with BUF_SIZE = 16.
+Note: Both tools require matching compiled BUF_SIZE constants.
+BUF_SIZE can be changed via the -Dbytes flag for zig build:
+$ zig build -Doptimize=ReleaseFast -Dbytes=8 --summary all
+yields binaries that work off chunks of 8 bytes. The default is 16 bytes.
 
 The output format of zx is crafted with zd in mind, so care must be taken when modifying this. The comments detail requirements and assumptions zd makes.
 
