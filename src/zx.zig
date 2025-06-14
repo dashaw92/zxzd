@@ -41,22 +41,25 @@ fn dump(path: [:0]const u8) !void {
     //Maintain the current offset into the file
     var idx: u32 = 0;
     const out = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(out);
+    const w = bw.writer();
+    defer bw.flush() catch {};
 
     while (try file.read(&buf) != 0) {
         //zd doesn't use the index at all, it's just for convenience, so it's ok if
         //the index overflows the width provided here.
-        try std.fmt.format(out, "{X:0>8}  ", .{idx});
+        try std.fmt.format(w, "{X:0>8}  ", .{idx});
 
         //Print each individual byte, suffixing non-terminal bytes with a single space (important)
         //zd depends on the single space. Could be reworked to not need it, but the output
         //is easier to read with it, so this single space is currently required.
         for (0..shared.BUF_SIZE) |i| {
-            try std.fmt.format(out, "{X:0>2}{s}", .{ buf[i], if (i == shared.BUF_SIZE - 1) "" else " " });
+            try std.fmt.format(w, "{X:0>2}{s}", .{ buf[i], if (i == shared.BUF_SIZE - 1) "" else " " });
         }
 
         //Not required, but makes the output more symmetrical. zd never considers anything except for \n
         //once the number of bytes read matches shared.BUF_SIZE.
-        _ = try out.write("  ");
+        _ = try w.write("  ");
 
         //Finish the line with the ASCII representation of the chunk, replacing non-printable
         //characters with a single '.'
@@ -65,14 +68,14 @@ fn dump(path: [:0]const u8) !void {
         for (0..shared.BUF_SIZE) |i| {
             //Note: <= 32, not < 32 because space is 0x20 (32). While it's printable, it's
             //invisible, so it's kinda useless to even display it in the ASCII column anyways. </opinion>
-            try std.fmt.format(out, "{c}", .{if (buf[i] <= 32 or buf[i] > 126) '.' else buf[i]});
+            try std.fmt.format(w, "{c}", .{if (buf[i] <= 32 or buf[i] > 126) '.' else buf[i]});
 
             //Clear the buf as we go so the end of the file is printed as 0 correctly.
             buf[i] = 0;
         }
 
         //Required for zd.
-        _ = try out.write("\n");
+        _ = try w.write("\n");
 
         //Update the offset
         idx += shared.BUF_SIZE;
