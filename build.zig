@@ -4,9 +4,9 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const BUF_SIZE = b.option(u5, "bytes", "Number of bytes per chunk") orelse 16;
+    const BUF_SIZE = b.option(u8, "bytes", "Number of bytes per chunk") orelse 16;
     const options = b.addOptions();
-    options.addOption(u5, "buf_size", BUF_SIZE);
+    options.addOption(u8, "buf_size", BUF_SIZE);
 
     //code shared between zx and zd
     const shared_lib = b.createModule(.{
