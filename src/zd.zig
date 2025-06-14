@@ -31,6 +31,9 @@ fn assemble(path: [:0]const u8) !void {
     var buf: [1]u8 = [_]u8{0};
     var singleRead: [1]u8 = [_]u8{0};
     const out = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(out);
+    const w = bw.writer();
+    defer bw.flush() catch {};
 
     //Number of bytes, this will mark completion of the line (aka skip until next '\n')
     //when == to BUF_SIZE
@@ -102,7 +105,7 @@ fn assemble(path: [:0]const u8) !void {
             }
 
             //Print the single byte out
-            _ = try out.write(&buf);
+            _ = try w.write(&buf);
         }
     }
 }
