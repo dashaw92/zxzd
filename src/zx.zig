@@ -3,7 +3,7 @@ const shared = @import("shared");
 
 pub fn main() !u8 {
     const path = shared.getArg() catch {
-        std.log.info("Usage: zx [ - | path ]", .{});
+        std.log.err("Usage: zx [ - | path ]", .{});
         return 1;
     };
 
