@@ -24,12 +24,13 @@ pub fn main() !u8 {
 // [3] Total number of bytes per line == BUF_SIZE (-Dbytes)
 // [4] All bytes are separated by a single space " "
 // [5] All lines are terminated with '\n'
+// [6] To pad lines to match BUF_SIZE bytes, offsets beyond the file's EOF are '**'.
 //
 //Example output (parenthesis = not printed):
 // (Offset)  (Bytes)                                          (ASCII without non-printables)
-// 00000000  68 65 6C 6C 6F 20 77 6F 72 6C 64 0A 00 00 00 00  hello.world.....(\n)
-//         ^   ^                           ^^                                  ^
-//       [1]   [4]                         [2]                                 [5]
+// 00000000  68 65 6C 6C 6F 20 77 6F 72 6C 64 0A ** ** ** **  hello.world.....(\n)
+//         ^   ^                           ^^    ^^                            ^
+//       [1]   [4]                         [2]   [6]                           [5]
 // [3] Total number of bytes printed on this line = 16; BUF_SIZE defaults to 16. Therefore, this line is valid.
 fn dump(path: [:0]const u8) !void {
     const file = try shared.getFileOrStdin(path);
@@ -46,7 +47,9 @@ fn dump(path: [:0]const u8) !void {
     const w = bw.writer();
     defer bw.flush() catch {};
 
-    while (try file.read(&buf) != 0) {
+    while (true) : (idx += BUF_SIZE) {
+        const count = try file.read(&buf);
+        if (count == 0) break;
         //zd doesn't use the index at all, it's just for convenience, so it's ok if
         //the index overflows the width provided here.
         try std.fmt.format(w, "{X:0>8}  ", .{idx});
@@ -55,7 +58,15 @@ fn dump(path: [:0]const u8) !void {
         //zd depends on the single space. Could be reworked to not need it, but the output
         //is easier to read with it, so this single space is currently required.
         for (0..BUF_SIZE) |i| {
-            try std.fmt.format(w, "{X:0>2}{s}", .{ buf[i], if (i == BUF_SIZE - 1) "" else " " });
+            //To signify the end of the file, zx will pad the line to BUF_SIZE bytes
+            //via `**` instead of valid hex. This allows the output to remain symmetrical
+            //for byte counts that are not multiples of BUF_SIZE while retaining the ability
+            //for zd to easily re-assemble the output.
+            if (i >= count) {
+                try std.fmt.format(w, "**{s}", .{if (i == BUF_SIZE - 1) "" else " "});
+            } else {
+                try std.fmt.format(w, "{X:0>2}{s}", .{ buf[i], if (i == BUF_SIZE - 1) "" else " " });
+            }
         }
 
         //Not required, but makes the output more symmetrical. zd never considers anything except for \n
@@ -69,6 +80,12 @@ fn dump(path: [:0]const u8) !void {
         for (0..BUF_SIZE) |i| {
             //Note: <= 32, not < 32 because space is 0x20 (32). While it's printable, it's
             //invisible, so it's kinda useless to even display it in the ASCII column anyways. </opinion>
+            //Regarding the `**` padding for beyond EOF: As the original buf is not touched, and is further
+            //reset to 0 (below) on every iteration, once the file has been fully read, the remaining bytes
+            //on the line will be 0, and this will print a '.'. This could be changed to also
+            //account for no further bytes, but as this column is ASCII, finding a single character
+            //to represent "this isn't actually in the file" is more difficult than continuing the pattern
+            //of displaying unprintable characters as '.'.
             try std.fmt.format(w, "{c}", .{if (buf[i] <= 32 or buf[i] > 126) '.' else buf[i]});
 
             //Clear the buf as we go so the end of the file is printed as 0 correctly.
@@ -77,8 +94,5 @@ fn dump(path: [:0]const u8) !void {
 
         //Required for zd.
         _ = try w.write("\n");
-
-        //Update the offset
-        idx += BUF_SIZE;
     }
 }

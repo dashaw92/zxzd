@@ -20,10 +20,11 @@ pub fn main() !u8 {
 //The assembler reads a single character from the input file (or stdin) at a time,
 //maintaining a state machine that keeps a mental model of where in the input we are.
 //zx output looks like:                                    vvvvvvvvvvvvvvvvvvv skipped
-//00000000  68 65 6C 6C 6F 20 77 6F 72 6C 64 0A 00 00 00 00  hello.world.....\n
+//00000000  68 65 6C 6C 6F 20 77 6F 72 6C 64 0A ** ** ** **  hello.world.....\n
 //^ skip  ^^~~ ~~ ~~ ~~ ~~ ~~ ~~ ~~ ~~ ~~ ~~ ~~ ~~ ~~ ~~ ~~> bytes to read and output
 //        marker used to flag the beginning of bytes
-//The program terminates once the first full 0x00 byte is read from the bytes in the input
+//The program terminates once the first '*' character is read from the bytes in the input; '*' is used to pad the lines
+//to be equal lengths, regardless of the file not being a multiple of BUF_SIZE in length.
 fn assemble(path: [:0]const u8) !void {
     const file = try shared.getFileOrStdin(path);
     defer file.close();
@@ -79,6 +80,10 @@ fn assemble(path: [:0]const u8) !void {
         //Since we're not ready to read bytes, everything is skippable.
         if (!readyToReadBytes) continue;
 
+        //zx marks EOF with * (shown as ** ** ... for the remainder of the line)
+        //as soon as a '*' appears in the byte list, there are no bytes remaining to read.
+        if (singleRead[0] == '*') break;
+
         //Convert from ASCII to number
         const byte = hexCharToInt(singleRead[0]);
 
@@ -90,9 +95,6 @@ fn assemble(path: [:0]const u8) !void {
         } else {
             //Accumulate the low bits into the existing high bits
             buf[0] += byte;
-
-            //If the finished byte is 0 (NULL/EOF), the file is finished.
-            if (buf[0] == 0) break;
 
             //Finished reading this byte. Reset flags to begin next byte.
             skipNext = true;
